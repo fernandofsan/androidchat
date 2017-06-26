@@ -1,4 +1,4 @@
-package br.com.persistence;
+package com.fernandoferreira.chat.persistence;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
@@ -15,7 +15,7 @@ import java.util.List;
  * Created by gilson.maciel on 27/04/2015.
  */
 public abstract class AbstractDBHelper extends OrmLiteSqliteOpenHelper {
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 3;
 
     protected abstract Class<?>[] getTableClassList();
 
@@ -38,5 +38,9 @@ public abstract class AbstractDBHelper extends OrmLiteSqliteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase database, ConnectionSource connectionSource,
                           int oldVersion, int newVersion) {
+
+//        if (oldVersion < 3){
+//            database.execSQL("alter table 'room' add column createdOn null;");
+//        }
     }
 }

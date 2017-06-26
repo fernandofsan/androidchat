@@ -5,4 +5,11 @@ package com.fernandoferreira.chat.dummy;
  */
 
 public class MyObject {
+    private String bssid;
+    private String name;
+
+    public MyObject(String _bssid, String _name){
+        this.bssid = _bssid;
+        this.name = _name;
+    }
 }

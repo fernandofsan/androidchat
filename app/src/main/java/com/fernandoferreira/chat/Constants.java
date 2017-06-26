@@ -5,5 +5,5 @@ package com.fernandoferreira.chat;
  */
 
 public class Constants {
-    public static final String CHAT_SERVER_URL = "http://130.211.117.170:3000/";
+    public static final String CHAT_SERVER_URL = "http://192.168.1.4:3000/";
 }

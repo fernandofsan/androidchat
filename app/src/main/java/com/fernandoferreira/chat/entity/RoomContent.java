@@ -16,7 +16,7 @@ public class RoomContent {
     /**
      * An array of sample (dummy) items.
      */
-    public static final List<RoomItem> ITEMS = new ArrayList<RoomItem>();
+    public List<RoomItem> ITEMS = new ArrayList<RoomItem>();
 
     /**
      * A map of sample (dummy) items, by ID.
@@ -25,12 +25,16 @@ public class RoomContent {
 
     private static final int COUNT = 25;
 
-    private static void addItem(RoomItem item) {
-        ITEMS.add(item);
-        ITEM_MAP.put(item.bssid, item);
+//    private static void addItem(RoomItem item) {
+//        ITEMS.add(item);
+//        ITEM_MAP.put(item.bssid, item);
+//    }
+
+    public RoomContent(){
+        ITEMS = new ArrayList<RoomItem>();
     }
 
-    public static RoomItem createRooomItem(String bssid, String name) {
+    public RoomItem createRooomItem(String bssid, String name) {
         return new RoomItem(bssid, name);
     }
 
@@ -47,8 +51,8 @@ public class RoomContent {
      * A dummy item representing a piece of content.
      */
     public static class RoomItem {
-        public final String bssid;
-        public final String name;
+        public String bssid;
+        public String name;
 
         public RoomItem(String bssid, String name) {
             this.bssid = bssid;

@@ -20,15 +20,22 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import com.fernandoferreira.chat.dummy.DummyContent;
+import com.fernandoferreira.chat.dummy.MyObject;
 import com.fernandoferreira.chat.entity.RoomContent;
+import com.fernandoferreira.chat.persistence.model.Room;
+import com.fernandoferreira.chat.persistence.repository.RoomRepository;
 import com.fernandoferreira.chat.socket.ChatApplication;
+import com.google.gson.Gson;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import io.socket.client.Socket;
@@ -48,6 +55,9 @@ public class ItemListActivity extends AppCompatActivity {
     private WifiReceiver wifiReceiver;
     private int scanCounter = 0;
     private RoomContent conteudo;
+    private Boolean isConnected = true;
+    private String mUsername = "Customuser";
+    final String TAG = "ChatLog";
 
     final View recyclerView = null;
 
@@ -67,6 +77,8 @@ public class ItemListActivity extends AppCompatActivity {
         wifiReceiver = new WifiReceiver();
         registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
         wifiManager.startScan();
+
+        conteudo = new RoomContent();
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -102,19 +114,101 @@ public class ItemListActivity extends AppCompatActivity {
         //socket
         ChatApplication app = (ChatApplication) getApplication();
         mSocket = app.getSocket();
-        mSocket.connect();
-        Log.i("ChatLog", "status socket: " + mSocket.connected());
+
+        mSocket.on(Socket.EVENT_CONNECT,onConnect);
+        mSocket.off(Socket.EVENT_DISCONNECT, onDisconnect);
+
         mSocket.on("login", onLogin);
-        mSocket.emit("add user", "oi galera");
+        mSocket.on("login2", onRoomJoined);
 
-//
+        mSocket.connect();
+
+        RoomRepository rp = new RoomRepository<Room>(this);
+        try {
+            Gson gson = new Gson();
+            Room newRoom = new Room("teste","teste");
+            rp.save(newRoom);
+            List<Room> salas = rp.queryAll();
+            int f = 0;
+            Log.i(TAG, "salas: " + salas.size());
+            Log.i(TAG, "cheguei aqui " + gson.toJson(salas));
+        } catch (SQLException e) {
+            Log.i(TAG, "sql " + e.getMessage());
+
+            e.printStackTrace();
+        } catch (Exception e) {
+            Log.i(TAG, e.getMessage());
+            e.printStackTrace();
+        }
+        Log.i(TAG, "terminou");
+
 //        try {
-//            mSocket.emit("add user", "meu android");
-//        }catch(Exception ec){
-//            Log.i("ChatLog", ec.getMessage());
-//        }
+//            RoomRepository rp = new RoomRepository<Room>(this);
+//
 
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+        int i =0;
     }
+
+    private Emitter.Listener onConnect = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+        ItemListActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                //if(!isConnected) {
+                //    if(null!=mUsername)
+                        mSocket.emit("add user", mUsername);
+                    Toast.makeText(ItemListActivity.this.getApplicationContext(),
+                            R.string.connect, Toast.LENGTH_LONG).show();
+                //    isConnected = true;
+                //}
+            }
+        });
+        }
+    };
+
+    private Emitter.Listener onDisconnect = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+            ItemListActivity.this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Log.i(TAG, "diconnected");
+                    isConnected = false;
+                    Toast.makeText(ItemListActivity.this.getApplicationContext(),
+                            R.string.disconnect, Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+    };
+
+    private Emitter.Listener onRoomJoined = new Emitter.Listener() {
+        @Override
+        public void call(Object... args) {
+            JSONObject data = (JSONObject) args[0];
+            try {
+                String message = data.getString("message");
+                String bssid = data.getString("bssid");
+                Log.i(TAG, message);
+
+                for (RoomContent.RoomItem room: conteudo.ITEMS) {
+                    if (room.bssid.equals(bssid)){
+                        room.name += "OK";
+                    }
+                }
+                //final View recyclerView = findViewById(R.id.item_list);
+                //updateRecyclerView((RecyclerView) recyclerView);
+
+            } catch (JSONException e) {
+
+            }
+        }
+    };
 
     private Emitter.Listener onLogin = new Emitter.Listener() {
         @Override
@@ -131,8 +225,8 @@ public class ItemListActivity extends AppCompatActivity {
             Intent intent = new Intent();
             intent.putExtra("username", "Fernando UserName");
             intent.putExtra("numUsers", numUsers);
-            setResult(RESULT_OK, intent);
-            finish();
+            //setResult(RESULT_OK, intent);
+            //finish();
         }
     };
 
@@ -219,17 +313,22 @@ public class ItemListActivity extends AppCompatActivity {
     private class WifiReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            final String TAG = "ChatLog";
             List<ScanResult> resultList = wifiManager.getScanResults();
             Log.i(TAG, "Scanning initiated");
             if (resultList.size() > 0) {
                 for (int i = 0; i < resultList.size(); i++) {
                     ScanResult result = resultList.get(i);
                     if (!roomAlreadyExists(result.BSSID)){
-                        Log.i(TAG, "SSID: " + result.SSID + " BSSID:" + result.BSSID.toString());
-                        conteudo.ITEMS.add(conteudo.createRooomItem(result.BSSID.toString(), result.SSID));
+                        RoomContent.RoomItem newRoom = conteudo.createRooomItem(result.BSSID.toString(), result.SSID);
+
+                        Gson gson = new Gson();
+
+                        Log.i(TAG, gson.toJson(newRoom));
+                        conteudo.ITEMS.add(newRoom);
                         final View recyclerView = findViewById(R.id.item_list);
                         updateRecyclerView((RecyclerView) recyclerView);
+
+                        mSocket.emit("join room", gson.toJson(newRoom));
                     }
                 }
             }

@@ -8,9 +8,7 @@ import com.j256.ormlite.table.DatabaseTable;
  */
 
 @DatabaseTable
-public class Room extends BaseModel{
+public class Message extends BaseModel{
     @DatabaseField(canBeNull = true)
-    private String bssid;
-    @DatabaseField(canBeNull = true)
-    private Integer name;
+    private String text;
 }

@@ -1,8 +1,9 @@
-package br.com.persistence.repository;
+package com.fernandoferreira.chat.persistence.repository;
 
 import android.content.Context;
 import android.util.Log;
 
+import com.fernandoferreira.chat.persistence.AbstractDBHelper;
 import com.j256.ormlite.dao.Dao;
 import com.j256.ormlite.dao.DaoManager;
 import com.j256.ormlite.stmt.QueryBuilder;
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
-import br.com.persistence.AbstractDBHelper;
+import com.fernandoferreira.chat.persistence.model.*;
 
 /**
  * Created by gilson.maciel on 27/04/2015.
@@ -45,8 +46,8 @@ public abstract class BaseOrmLiteRepository<T, Id> implements IRepository<T, Id>
         if (genericType == null) {
             Type mySuperclass = getClass().getGenericSuperclass();
             Type tType = ((ParameterizedType) mySuperclass).getActualTypeArguments()[0];
-            String className = tType.toString().split(" ")[1];
-            genericType = (Class<T>) Class.forName(className);
+            String className = tType.toString().split(" ")[0];
+            genericType = (Class<T>) Class.forName("com.fernandoferreira.chat.persistence.model." + className);
             Log.d(BaseOrmLiteRepository.class.getSimpleName(),
                     "Type class: " + genericType.getSimpleName());
         }

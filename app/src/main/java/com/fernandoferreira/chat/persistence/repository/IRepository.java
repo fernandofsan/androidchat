@@ -1,4 +1,4 @@
-package br.com.persistence.repository;
+package com.fernandoferreira.chat.persistence.repository;
 
 import java.sql.SQLException;
 import java.util.List;
