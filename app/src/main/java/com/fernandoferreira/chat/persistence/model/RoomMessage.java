@@ -8,7 +8,10 @@ import com.j256.ormlite.table.DatabaseTable;
  */
 
 @DatabaseTable
-public class Message extends BaseModel{
+public class RoomMessage extends BaseModel{
     @DatabaseField(canBeNull = true)
     private String text;
+
+    @DatabaseField(canBeNull = true)
+    private String userName;
 }

@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.nfc.Tag;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
@@ -35,7 +36,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Date;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 import io.socket.client.Socket;
@@ -63,6 +66,9 @@ public class ItemListActivity extends AppCompatActivity {
 
     private Socket mSocket;
 
+    private RoomRepository<Room> repoRooms;
+    private List<Room> myRooms;
+
     /**
      * Whether or not the activity is in two-pane mode, i.e. running on a tablet
      * device.
@@ -78,6 +84,8 @@ public class ItemListActivity extends AppCompatActivity {
         registerReceiver(wifiReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
         wifiManager.startScan();
 
+        repoRooms = new RoomRepository<Room>(this);
+        myRooms = new ArrayList<Room>();
         conteudo = new RoomContent();
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -85,23 +93,21 @@ public class ItemListActivity extends AppCompatActivity {
         toolbar.setTitle(getTitle());
 
 
-        final View recyclerView = findViewById(R.id.item_list);
-        assert recyclerView != null;
-        setupRecyclerView((RecyclerView) recyclerView);
+        loadMyRooms();
 
 
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                 updateRecyclerView((RecyclerView) recyclerView);
-
-//                Snackbar.make(view, "Replace with your own action", S
-// nackbar.LENGTH_LONG)
-                //                      .setAction("Action", null).show();
-            }
-        });
+//        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+//        fab.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                 updateRecyclerView((RecyclerView) recyclerView);
+//
+////                Snackbar.make(view, "Replace with your own action", S
+//// nackbar.LENGTH_LONG)
+//                //                      .setAction("Action", null).show();
+//            }
+//        });
 
         if (findViewById(R.id.item_detail_container) != null) {
             // The detail container view will be present only in the
@@ -126,8 +132,6 @@ public class ItemListActivity extends AppCompatActivity {
         RoomRepository rp = new RoomRepository<Room>(this);
         try {
             Gson gson = new Gson();
-            Room newRoom = new Room("teste","teste");
-            rp.save(newRoom);
             List<Room> salas = rp.queryAll();
             int f = 0;
             Log.i(TAG, "salas: " + salas.size());
@@ -189,24 +193,30 @@ public class ItemListActivity extends AppCompatActivity {
 
     private Emitter.Listener onRoomJoined = new Emitter.Listener() {
         @Override
-        public void call(Object... args) {
-            JSONObject data = (JSONObject) args[0];
-            try {
-                String message = data.getString("message");
-                String bssid = data.getString("bssid");
-                Log.i(TAG, message);
+        public void call(final Object... args) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    JSONObject data = (JSONObject) args[0];
+                    try {
+                        String message = data.getString("message");
+                        String bssid = data.getString("bssid");
+                        Log.i(TAG, message);
 
-                for (RoomContent.RoomItem room: conteudo.ITEMS) {
-                    if (room.bssid.equals(bssid)){
-                        room.name += "OK";
+                        Room myRoom = repoRooms.getEntitySimpleWhere("bssid", bssid);
+
+                        if (myRoom != null) {
+                            myRoom.setLatestMessage(message, "fulano", new java.util.Date());
+                            repoRooms.save(myRoom);
+
+                        }
+                        loadMyRooms();
+                    } catch (SQLException e) {
+                        Log.i(TAG, e.getMessage());
+                    } catch (JSONException e) {
                     }
                 }
-                //final View recyclerView = findViewById(R.id.item_list);
-                //updateRecyclerView((RecyclerView) recyclerView);
-
-            } catch (JSONException e) {
-
-            }
+            });
         }
     };
 
@@ -230,19 +240,22 @@ public class ItemListActivity extends AppCompatActivity {
         }
     };
 
-    public void updateRecyclerView(RecyclerView recyclerView){
-        recyclerView.getAdapter().notifyDataSetChanged();
-    }
-    private void setupRecyclerView(@NonNull RecyclerView recyclerView) {
-        recyclerView.setAdapter(new SimpleItemRecyclerViewAdapter(conteudo.ITEMS));
+    public void loadMyRooms(){
+        try {
+            myRooms = repoRooms.queryAll();
+            final View recyclerView = findViewById(R.id.item_list);
+            ((RecyclerView) recyclerView).setAdapter(new SimpleItemRecyclerViewAdapter(myRooms));
+        } catch (SQLException e) {
+            Log.i(TAG, e.getMessage());
+        }
     }
 
     public class SimpleItemRecyclerViewAdapter
             extends RecyclerView.Adapter<SimpleItemRecyclerViewAdapter.ViewHolder> {
 
-        private final List<RoomContent.RoomItem> mValues;
+        private final List<Room> mValues;
 
-        public SimpleItemRecyclerViewAdapter(List<RoomContent.RoomItem> items) {
+        public SimpleItemRecyclerViewAdapter(List<Room> items) {
             mValues = items;
         }
 
@@ -256,16 +269,16 @@ public class ItemListActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(final ViewHolder holder, int position) {
             holder.mItem = mValues.get(position);
-//            holder.mIdView.setText(mValues.get(position).bssid);
-            holder.mContentView.setText(mValues.get(position).name);
+            holder.mLatestMessage.setText(mValues.get(position).getLatestMessage());
+            holder.mContentView.setText(mValues.get(position).getName());
 
             holder.mView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (mTwoPane) {
                         Bundle arguments = new Bundle();
-                        arguments.putString(ItemDetailFragment.ARG_ITEM_ID, holder.mItem.bssid);
-                        arguments.putString("name", holder.mItem.name);
+                        arguments.putString(ItemDetailFragment.ARG_ITEM_ID, holder.mItem.getBssid());
+                        arguments.putString("name", holder.mItem.getName());
 
                         ItemDetailFragment fragment = new ItemDetailFragment();
                         fragment.setArguments(arguments);
@@ -275,8 +288,8 @@ public class ItemListActivity extends AppCompatActivity {
                     } else {
                         Context context = v.getContext();
                         Intent intent = new Intent(context, ItemDetailActivity.class);
-                        intent.putExtra(ItemDetailFragment.ARG_ITEM_ID, holder.mItem.bssid);
-                        intent.putExtra("name", holder.mItem.name);
+                        intent.putExtra(ItemDetailFragment.ARG_ITEM_ID, holder.mItem.getBssid());
+                        intent.putExtra("name", holder.mItem.getName());
 
                         context.startActivity(intent);
                     }
@@ -291,14 +304,14 @@ public class ItemListActivity extends AppCompatActivity {
 
         public class ViewHolder extends RecyclerView.ViewHolder {
             public final View mView;
-//            public final TextView mIdView;
+            public final TextView mLatestMessage;
             public final TextView mContentView;
-            public RoomContent.RoomItem mItem;
+            public Room mItem;
 
             public ViewHolder(View view) {
                 super(view);
                 mView = view;
-//                mIdView = (TextView) view.findViewById(R.id.id);
+                mLatestMessage = (TextView) view.findViewById(R.id.latestMessage);
                 mContentView = (TextView) view.findViewById(R.id.content);
             }
 
@@ -318,33 +331,31 @@ public class ItemListActivity extends AppCompatActivity {
             if (resultList.size() > 0) {
                 for (int i = 0; i < resultList.size(); i++) {
                     ScanResult result = resultList.get(i);
-                    if (!roomAlreadyExists(result.BSSID)){
-                        RoomContent.RoomItem newRoom = conteudo.createRooomItem(result.BSSID.toString(), result.SSID);
+                    try {
+                        if (!roomAlreadyExists(result.BSSID)) {
+                            Gson gson = new Gson();
+                            Room newRoom = new Room(result.BSSID.toString(), result.SSID);
 
-                        Gson gson = new Gson();
+                            newRoom.setLatestMessage(new Date().toString(), "fulano", new Date());
+                            Log.i(TAG, gson.toJson(newRoom));
+                            repoRooms.save(newRoom);
 
-                        Log.i(TAG, gson.toJson(newRoom));
-                        conteudo.ITEMS.add(newRoom);
-                        final View recyclerView = findViewById(R.id.item_list);
-                        updateRecyclerView((RecyclerView) recyclerView);
-
-                        mSocket.emit("join room", gson.toJson(newRoom));
+                            loadMyRooms();
+                            mSocket.emit("join room", gson.toJson(newRoom));
+                        }
+                    } catch(SQLException e){
+                        Log.i(TAG, e.getMessage());
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }
             wifiManager.startScan();
         }
 
-        public Boolean roomAlreadyExists(String bssid){
-            if (conteudo.ITEMS != null) {
-                for (RoomContent.RoomItem room : conteudo.ITEMS) {
-                    if (room.bssid.equals(bssid)) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+        public Boolean roomAlreadyExists(String bssid) throws Exception {
+            Room myRoom = repoRooms.getEntitySimpleWhere("bssid", bssid);
+            return myRoom != null;
         }
     }
 
