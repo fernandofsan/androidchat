@@ -9,9 +9,36 @@ import com.j256.ormlite.table.DatabaseTable;
 
 @DatabaseTable
 public class RoomMessage extends BaseModel{
-    @DatabaseField(canBeNull = true)
+    @DatabaseField(canBeNull = false)
     private String text;
 
-    @DatabaseField(canBeNull = true)
+    @DatabaseField(canBeNull = false)
     private String userName;
+
+    @DatabaseField(canBeNull = false, foreign = true)
+    private Room room;
+
+    public String getText(){
+        return this.text;
+    }
+
+    public void setText(String _text){
+        this.text = _text;
+    }
+
+    public String getUserName(){
+        return this.userName;
+    }
+
+    public void setUserName(String _userName){
+        this.userName = _userName;
+    }
+
+    public Room getRoom(){
+        return this.room;
+    }
+
+    public void setRoom(Room _room){
+        this.room = _room;
+    }
 }

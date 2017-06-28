@@ -28,9 +28,12 @@ import com.fernandoferreira.chat.dummy.DummyContent;
 import com.fernandoferreira.chat.dummy.MyObject;
 import com.fernandoferreira.chat.entity.RoomContent;
 import com.fernandoferreira.chat.persistence.model.Room;
+import com.fernandoferreira.chat.persistence.model.RoomMessage;
+import com.fernandoferreira.chat.persistence.repository.RoomMessageRepository;
 import com.fernandoferreira.chat.persistence.repository.RoomRepository;
 import com.fernandoferreira.chat.socket.ChatApplication;
 import com.google.gson.Gson;
+import com.j256.ormlite.stmt.QueryBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -67,6 +70,7 @@ public class ItemListActivity extends AppCompatActivity {
     private Socket mSocket;
 
     private RoomRepository<Room> repoRooms;
+    private RoomMessageRepository<RoomMessage> repoRoomMessages;
     private List<Room> myRooms;
 
     /**
@@ -85,6 +89,8 @@ public class ItemListActivity extends AppCompatActivity {
         wifiManager.startScan();
 
         repoRooms = new RoomRepository<Room>(this);
+        repoRoomMessages = new RoomMessageRepository<RoomMessage>(this);
+
         myRooms = new ArrayList<Room>();
         conteudo = new RoomContent();
 
@@ -201,12 +207,22 @@ public class ItemListActivity extends AppCompatActivity {
                     try {
                         String message = data.getString("message");
                         String bssid = data.getString("bssid");
+                        String username = data.getString("username");
                         Log.i(TAG, message);
 
                         Room myRoom = repoRooms.getEntitySimpleWhere("bssid", bssid);
-
                         if (myRoom != null) {
-                            myRoom.setLatestMessage(message, "fulano", new java.util.Date());
+
+                            RoomMessage roomMessage = new RoomMessage();
+                            roomMessage.setRoom(myRoom);
+                            roomMessage.setText(message);
+                            roomMessage.setUserName(username);
+                            roomMessage.setCreatedOn(new java.util.Date());
+                            repoRoomMessages.save(roomMessage);
+
+                            //Log.i(TAG, "Messagens para esse grupo " + repoRoomMessages.getQueryBuilder()<RoomMessage, Long>()("bssid", bssid).size());
+
+                            myRoom.setLatestMessage(message, username, new java.util.Date());
                             repoRooms.save(myRoom);
 
                         }
@@ -269,7 +285,8 @@ public class ItemListActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(final ViewHolder holder, int position) {
             holder.mItem = mValues.get(position);
-            holder.mLatestMessage.setText(mValues.get(position).getLatestMessage());
+            long qtdMessages = repoRoomMessages.countByRoom(holder.mItem.getBssid());
+            holder.mLatestMessage.setText("(" + qtdMessages + ") " + mValues.get(position).getLatestMessage());
             holder.mContentView.setText(mValues.get(position).getName());
 
             holder.mView.setOnClickListener(new View.OnClickListener() {

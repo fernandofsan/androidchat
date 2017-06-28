@@ -3,6 +3,7 @@ package com.fernandoferreira.chat.persistence;
 import android.content.Context;
 
 import com.fernandoferreira.chat.persistence.model.Room;
+import com.fernandoferreira.chat.persistence.model.RoomMessage;
 
 /**
  * Created by Fernando on 25/06/2017.
@@ -17,6 +18,6 @@ public class ChatDBHelper extends AbstractDBHelper {
 
     @Override
     protected Class<?>[] getTableClassList() {
-        return new Class<?>[]{Room.class};
+        return new Class<?>[]{Room.class, RoomMessage.class};
     }
 }
